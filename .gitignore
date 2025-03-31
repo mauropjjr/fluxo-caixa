@@ -1,0 +1,17 @@
+﻿################################################################################
+# Este arquivo .gitignore foi criado automaticamente pelo Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/src/.vs
+/src/bin/Debug
+/src/Consolidado/bin/Debug/net9.0
+/src/Consolidado/obj
+/src/Core/bin/Debug/net9.0
+/src/Core/obj
+/src/Infrastructure/bin/Debug/net9.0
+/src/Infrastructure/obj
+/src/Lancamentos/bin/Debug/net9.0
+/src/Lancamentos/obj
+/src/obj/Debug
+/src/obj/Docker
