@@ -1,0 +1,146 @@
+networks:
+  internal-net:
+    driver: bridge
+volumes:
+  postgres-data:
+  mongo-data:
+  rabbitmq-data:
+  pgadmin-data:
+  redis-data:
+services:
+  consolidado:
+    image: ${DOCKER_REGISTRY-}consolidado
+    build:
+      context: .
+      dockerfile: Consolidado/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Mongo: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017
+      Mongo__DatabaseName: ${MONGO_DB}
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER}
+      RabbitMQ__Password: ${RABBITMQ_PASS}
+      BasicAuth__Username: ${BASIC_AUTH_USER}
+      BasicAuth__Password: ${BASIC_AUTH_PASS}
+      REDIS_CONNECTION_STRING: redis
+      REDIS_INSTANCE_NAME: Consolidado_
+      REDIS_CACHE_TIMEOUT_MINUTES: 30
+    networks:
+      - internal-net
+    ports:
+      - 8090:8080
+    depends_on:
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  lancamentos:
+    image: ${DOCKER_REGISTRY-}lancamentos
+    build:
+      context: .
+      dockerfile: Lancamentos/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Postgres: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER}
+      RabbitMQ__Password: ${RABBITMQ_PASS}
+      BasicAuth__Username: ${BASIC_AUTH_USER}
+      BasicAuth__Password: ${BASIC_AUTH_PASS}
+      REDIS_CONNECTION_STRING: redis
+      REDIS_INSTANCE_NAME: Lancamentos_
+      REDIS_CACHE_TIMEOUT_MINUTES: 30
+    ports:
+      - 8080:8080
+    networks:
+      - internal-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:13-alpine
+    hostname: postgreshost
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - POSTGRES_HOST=postgreshost
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - internal-net
+    ports:
+      - "8088:80" 
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped 
+
+  mongo:
+    image: mongo:5.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - internal-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - internal-net
+    ports:  
+      - "5672:5672" 
+      - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]  
+      interval: 30s            
+      timeout: 5s             
+      retries: 3              
+      start_period: 30s     
+  redis:
+    image: redis:6-alpine
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal-net
+
