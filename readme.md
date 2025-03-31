@@ -94,8 +94,7 @@ graph TD
     D --> H[(MongoDB)]
     D --> F
     G --> D
-    C --> I[(Prometheus)]
-    D --> I
+  
 ```
 
 1. **Fluxo de Lançamento**:
